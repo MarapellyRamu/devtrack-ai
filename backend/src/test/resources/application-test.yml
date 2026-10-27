@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:devtrack-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE DOMAIN IF NOT EXISTS TIMESTAMPTZ AS TIMESTAMP WITH TIME ZONE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+devtrack:
+  security:
+    jwt:
+      secret: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      expiration: PT1H
+
+logging:
+  level:
+    root: WARN
+    org.springframework.security: WARN
+    org.springframework.web.client.RestTemplate: WARN
+    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: WARN
+    org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor: WARN
+    org.hibernate.SQL: WARN

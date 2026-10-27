@@ -1,0 +1,18 @@
+# Normalize line endings to LF in the repository for cross-platform consistency.
+# Git will convert to CRLF on Windows checkouts automatically.
+* text=auto eol=lf
+
+# Ensure shell scripts always use LF (required for Docker/Linux containers)
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+# Binary files — no line-ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
+*.woff binary
+*.woff2 binary
+*.jar binary

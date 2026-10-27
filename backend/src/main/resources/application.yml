@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: devtrack-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/devtrack}
+    username: ${DB_USERNAME:devtrack}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:change-me-locally}}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+
+devtrack:
+  ai:
+    url: ${AI_SERVICE_URL:http://localhost:8000}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:}
+      expiration: ${JWT_EXPIRATION:PT1H}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+info:
+  app:
+    name: DevTrack AI Backend
+    version: 0.1.0-SNAPSHOT
