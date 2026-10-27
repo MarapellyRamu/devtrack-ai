@@ -20,7 +20,8 @@ services:
     name: devtrack-backend
     runtime: docker
     plan: free
-    dockerfilePath: backend/Dockerfile
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
@@ -86,7 +87,8 @@ services:
     name: devtrack-ai-service
     runtime: docker
     plan: free
-    dockerfilePath: ai-service/Dockerfile
+    dockerfilePath: ./ai-service/Dockerfile
+    dockerContext: ./ai-service
     healthCheckPath: /api/ai/health
     autoDeploy: true
     envVars:
