@@ -1,0 +1,67 @@
+# render.yaml — Render Infrastructure as Code
+# Defines the backend and AI service as Docker-based Web Services.
+# The PostgreSQL database is provisioned separately via the Render dashboard
+# (New → PostgreSQL → name: devtrack-db) and its connection values are
+# supplied as environment variables below.
+#
+# After creating this file:
+#   1. Push to GitHub.
+#   2. In Render dashboard → New → Blueprint → connect your repo.
+#   3. Fill in every value marked <REPLACE_ME> in the Render env-var UI.
+#   4. Deploy.
+
+services:
+  # ── Spring Boot backend ──────────────────────────────────────────────────────
+  - type: web
+    name: devtrack-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    # Render sets PORT automatically; Spring Boot reads SERVER_PORT.
+    # The Dockerfile exposes 8080; keep SERVER_PORT in sync.
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: SERVER_PORT
+        value: "8080"
+
+      # ── Database (copy from Render PostgreSQL → Connection Info) ───────────
+      - key: DB_URL
+        value: <REPLACE_ME>          # jdbc:postgresql://<host>:<port>/<db>
+      - key: DB_USERNAME
+        value: <REPLACE_ME>
+      - key: DB_PASSWORD
+        value: <REPLACE_ME>
+
+      # ── JWT (generate once; same value must be set on ai-service too) ──────
+      # PowerShell: [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+      - key: JWT_SECRET
+        value: <REPLACE_ME>
+      - key: JWT_EXPIRATION
+        value: "PT1H"
+
+      # ── AI service internal URL (fill in after ai-service is deployed) ─────
+      - key: AI_SERVICE_URL
+        value: <REPLACE_ME>          # https://devtrack-ai-service.onrender.com
+
+      # ── CORS: Firebase Hosting URL of your frontend ───────────────────────
+      # Add your custom domain here too if you configure one, comma-separated.
+      - key: ALLOWED_ORIGINS
+        value: <REPLACE_ME>          # https://<your-project>.web.app
+
+  # ── FastAPI AI service ───────────────────────────────────────────────────────
+  - type: web
+    name: devtrack-ai-service
+    runtime: docker
+    dockerfilePath: ai-service/Dockerfile
+    healthCheckPath: /api/ai/health
+    autoDeploy: true
+    envVars:
+      # ── JWT — must be identical to the backend value ───────────────────────
+      - key: JWT_SECRET
+        value: <REPLACE_ME>          # same Base64 value as backend
+
+      # ── OpenAI (optional — AI suggestions are disabled without this) ───────
+      - key: OPENAI_API_KEY
+        value: <REPLACE_ME>          # sk-...  (leave blank to disable AI)
+      - key: OPENAI_MODEL
+        value: "gpt-4o-mini"
