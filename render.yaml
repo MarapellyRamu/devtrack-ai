@@ -1,50 +1,61 @@
 # render.yaml — Render Infrastructure as Code
-# Defines the backend and AI service as Docker-based Web Services.
-# The PostgreSQL database is provisioned separately via the Render dashboard
-# (New → PostgreSQL → name: devtrack-db) and its connection values are
-# supplied as environment variables below.
+# Deploys the Spring Boot backend and FastAPI AI service as Docker Web Services
+# on Render's free plan (no payment required).
 #
-# After creating this file:
-#   1. Push to GitHub.
-#   2. In Render dashboard → New → Blueprint → connect your repo.
-#   3. Fill in every value marked <REPLACE_ME> in the Render env-var UI.
-#   4. Deploy.
+# Database: Supabase PostgreSQL (free, no expiry) — provisioned separately.
+# Frontend: Firebase Hosting — deployed separately via Firebase CLI.
+#
+# Setup steps:
+#   1. Create a free Supabase project at https://supabase.com
+#      → Project Settings → Database → Connection string (URI mode)
+#      → Copy the postgresql://... URL and convert to jdbc:postgresql://...
+#   2. Push this file to GitHub.
+#   3. Render dashboard → New → Blueprint → connect repo MarapellyRamu/devtrack-ai.
+#   4. Fill every <REPLACE_ME> in the Render environment variable UI.
+#      Never put real secret values directly in this file.
+#   5. After backend is deployed, copy its URL into AI_SERVICE_URL on the backend,
+#      and after AI service is deployed, copy its URL into AI_SERVICE_URL.
 
 services:
   # ── Spring Boot backend ──────────────────────────────────────────────────────
   - type: web
     name: devtrack-backend
     runtime: docker
+    plan: free
     dockerfilePath: backend/Dockerfile
-    # Render sets PORT automatically; Spring Boot reads SERVER_PORT.
-    # The Dockerfile exposes 8080; keep SERVER_PORT in sync.
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: SERVER_PORT
         value: "8080"
 
-      # ── Database (copy from Render PostgreSQL → Connection Info) ───────────
+      # ── Supabase PostgreSQL connection ─────────────────────────────────────
+      # From Supabase: Project Settings → Database → Connection String (URI)
+      # Convert: postgres://user:pass@host:5432/postgres
+      #      to: jdbc:postgresql://host:5432/postgres
       - key: DB_URL
-        value: <REPLACE_ME>          # jdbc:postgresql://<host>:<port>/<db>
+        value: <REPLACE_ME>          # jdbc:postgresql://<host>:5432/postgres
       - key: DB_USERNAME
-        value: <REPLACE_ME>
+        value: <REPLACE_ME>          # Supabase DB user (usually "postgres")
       - key: DB_PASSWORD
-        value: <REPLACE_ME>
+        value: <REPLACE_ME>          # Supabase DB password
 
-      # ── JWT (generate once; same value must be set on ai-service too) ──────
-      # PowerShell: [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+      # ── JWT ────────────────────────────────────────────────────────────────
+      # Generate with PowerShell:
+      # [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+      # Use the SAME value for devtrack-ai-service below.
       - key: JWT_SECRET
         value: <REPLACE_ME>
       - key: JWT_EXPIRATION
         value: "PT1H"
 
-      # ── AI service internal URL (fill in after ai-service is deployed) ─────
+      # ── AI service URL (fill in after devtrack-ai-service is deployed) ────
       - key: AI_SERVICE_URL
         value: <REPLACE_ME>          # https://devtrack-ai-service.onrender.com
 
-      # ── CORS: Firebase Hosting URL of your frontend ───────────────────────
-      # Add your custom domain here too if you configure one, comma-separated.
+      # ── CORS: your Firebase Hosting URL ──────────────────────────────────
+      # Format: https://<firebase-project-id>.web.app
+      # Add custom domain too if configured, comma-separated.
       - key: ALLOWED_ORIGINS
         value: <REPLACE_ME>          # https://<your-project>.web.app
 
@@ -52,16 +63,17 @@ services:
   - type: web
     name: devtrack-ai-service
     runtime: docker
+    plan: free
     dockerfilePath: ai-service/Dockerfile
     healthCheckPath: /api/ai/health
     autoDeploy: true
     envVars:
-      # ── JWT — must be identical to the backend value ───────────────────────
+      # ── JWT — must be byte-for-byte identical to the backend value ─────────
       - key: JWT_SECRET
-        value: <REPLACE_ME>          # same Base64 value as backend
+        value: <REPLACE_ME>
 
-      # ── OpenAI (optional — AI suggestions are disabled without this) ───────
+      # ── OpenAI (leave blank to run without AI suggestions) ────────────────
       - key: OPENAI_API_KEY
-        value: <REPLACE_ME>          # sk-...  (leave blank to disable AI)
+        value: <REPLACE_ME>          # sk-...  or leave as empty string
       - key: OPENAI_MODEL
         value: "gpt-4o-mini"

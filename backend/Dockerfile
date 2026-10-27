@@ -21,4 +21,12 @@ USER devtrack
 COPY --from=builder /app/target/devtrack-backend-*.jar app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Container-aware JVM flags for Render's 512 MB free instance.
+# -XX:+UseContainerSupport  : reads Docker memory limit (512 MB), not host RAM
+# -XX:MaxRAMPercentage=70.0 : caps heap at ~358 MB, leaving room for JVM overhead
+# -XX:+ExitOnOutOfMemoryError: clean crash (Render restarts) instead of hang
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=70.0", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-jar", "app.jar"]
