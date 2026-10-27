@@ -6,15 +6,13 @@
 # Frontend: Firebase Hosting — deployed separately via Firebase CLI.
 #
 # Setup steps:
-#   1. Create a free Supabase project at https://supabase.com
-#      → Project Settings → Database → Connection string (URI mode)
-#      → Copy the postgresql://... URL and convert to jdbc:postgresql://...
+#   1. Create a free Supabase project at https://supabase.com (choose Singapore).
 #   2. Push this file to GitHub.
 #   3. Render dashboard → New → Blueprint → connect repo MarapellyRamu/devtrack-ai.
 #   4. Fill every <REPLACE_ME> in the Render environment variable UI.
 #      Never put real secret values directly in this file.
-#   5. After backend is deployed, copy its URL into AI_SERVICE_URL on the backend,
-#      and after AI service is deployed, copy its URL into AI_SERVICE_URL.
+#   5. Deploy devtrack-ai-service first → copy its URL into AI_SERVICE_URL on the backend.
+#   6. Deploy devtrack-backend → copy its URL into ALLOWED_ORIGINS after Firebase deploy.
 
 services:
   # ── Spring Boot backend ──────────────────────────────────────────────────────
@@ -26,38 +24,62 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
+      # PORT tells Render which port to route traffic to.
+      # Spring Boot reads SERVER_PORT and binds to 8080; PORT must match.
+      - key: PORT
+        value: "8080"
       - key: SERVER_PORT
         value: "8080"
 
-      # ── Supabase PostgreSQL connection ─────────────────────────────────────
-      # From Supabase: Project Settings → Database → Connection String (URI)
-      # Convert: postgres://user:pass@host:5432/postgres
-      #      to: jdbc:postgresql://host:5432/postgres
+      # ── Supabase PostgreSQL — Session Pooler (IPv4-compatible) ─────────────
+      #
+      # Render's free tier is IPv4-only. Supabase's direct connection
+      # (db.<ref>.supabase.co) resolves to IPv6 and WILL time out on Render.
+      # Use the Session Pooler instead — it is natively IPv4 and supports
+      # JPA prepared statements and Flyway (unlike the Transaction Pooler).
+      #
+      # In Supabase dashboard → Connect → Session pooler → JDBC tab:
+      #   Host:  aws-0-ap-southeast-1.pooler.supabase.com
+      #   Port:  5432
+      #   User:  postgres.<your-project-ref>   ← note the dot-format username
+      #   DB:    postgres
+      #
+      # DB_URL must include ?sslmode=require — Supabase rejects unencrypted connections.
+      # If your DB password contains special characters (#, $, @, &, etc.),
+      # URL-encode them (# → %23, $ → %24, @ → %40, & → %26) in this value only;
+      # DB_PASSWORD is passed separately and does not need encoding.
       - key: DB_URL
-        value: <REPLACE_ME>          # jdbc:postgresql://<host>:5432/postgres
+        value: <REPLACE_ME>
+        # Example: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
       - key: DB_USERNAME
-        value: <REPLACE_ME>          # Supabase DB user (usually "postgres")
+        value: <REPLACE_ME>
+        # Example: postgres.abcdefghijklmnop   (your project ref from Supabase → Connect)
       - key: DB_PASSWORD
-        value: <REPLACE_ME>          # Supabase DB password
+        value: <REPLACE_ME>
+        # Your Supabase database password (plain value; no URL-encoding here)
 
       # ── JWT ────────────────────────────────────────────────────────────────
-      # Generate with PowerShell:
-      # [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-      # Use the SAME value for devtrack-ai-service below.
+      # Generate a production secret with PowerShell (run once; save output securely):
+      #   [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+      # The same value must be set on devtrack-ai-service below.
+      # Do NOT reuse the test secret from application-test.yml.
       - key: JWT_SECRET
         value: <REPLACE_ME>
       - key: JWT_EXPIRATION
         value: "PT1H"
 
-      # ── AI service URL (fill in after devtrack-ai-service is deployed) ────
+      # ── AI service URL ─────────────────────────────────────────────────────
+      # Fill in after devtrack-ai-service is deployed and its URL is known.
       - key: AI_SERVICE_URL
-        value: <REPLACE_ME>          # https://devtrack-ai-service.onrender.com
+        value: <REPLACE_ME>
+        # Example: https://devtrack-ai-service.onrender.com
 
-      # ── CORS: your Firebase Hosting URL ──────────────────────────────────
-      # Format: https://<firebase-project-id>.web.app
-      # Add custom domain too if configured, comma-separated.
+      # ── CORS ───────────────────────────────────────────────────────────────
+      # Your Firebase Hosting URL. Format: https://<firebase-project-id>.web.app
+      # If you add a custom domain, append it comma-separated.
       - key: ALLOWED_ORIGINS
-        value: <REPLACE_ME>          # https://<your-project>.web.app
+        value: <REPLACE_ME>
+        # Example: https://devtrack-ai-abc12.web.app
 
   # ── FastAPI AI service ───────────────────────────────────────────────────────
   - type: web
@@ -68,12 +90,20 @@ services:
     healthCheckPath: /api/ai/health
     autoDeploy: true
     envVars:
+      # PORT tells Render which port to route traffic to.
+      # Uvicorn is started with --port 8000 in the Dockerfile CMD; PORT must match.
+      - key: PORT
+        value: "8000"
+
       # ── JWT — must be byte-for-byte identical to the backend value ─────────
       - key: JWT_SECRET
         value: <REPLACE_ME>
 
-      # ── OpenAI (leave blank to run without AI suggestions) ────────────────
+      # ── OpenAI ─────────────────────────────────────────────────────────────
+      # Set to your OpenAI API key to enable AI issue suggestions.
+      # Leave as empty string to run without AI (suggestions endpoint returns 503).
       - key: OPENAI_API_KEY
-        value: <REPLACE_ME>          # sk-...  or leave as empty string
+        value: <REPLACE_ME>
+        # Example: sk-proj-...  or leave as empty string: ""
       - key: OPENAI_MODEL
         value: "gpt-4o-mini"
